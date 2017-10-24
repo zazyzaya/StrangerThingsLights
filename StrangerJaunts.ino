@@ -6,10 +6,11 @@
 #define DATA1 12
 
 #define NUM_LEDS 150
-#define START_CEILING 100
+#define START_CEILING 118
 #define LETTER_SPACING 3
-#define OFFSET 10
+#define OFFSET 21
 #define BRIGHTNESS 200
+#define HEAT_DELAY 400
 
 CRGB leds[NUM_LEDS];
 
@@ -20,18 +21,24 @@ void allWhite(CRGB color = CRGB(255, 255, 255)){
   }
 }
 
-void fillFromPalette(CRGBPalette16 palette, int start=0, int endLED=NUM_LEDS){
+void fillFromPalette(CRGBPalette16 palette, int start=0, int endLED=NUM_LEDS, boolean isCeil=false){
   static int offset = 0;
-  offset++;
-  for (int i = start; i < endLED; i++){
-    leds[i%NUM_LEDS] = ColorFromPalette(palette, i+offset + 3, BRIGHTNESS, LINEARBLEND);
+  offset += 3;
+  if (!isCeil){
+    for (int i = start; i < endLED; i++){
+      leds[i%(NUM_LEDS-OFFSET) + OFFSET] = ColorFromPalette(palette, i+offset + 3, BRIGHTNESS, LINEARBLEND);
+    }
+  } else {
+    for (int i = start; i < endLED; i++){
+      leds[i] = ColorFromPalette(palette, i+offset + 3, BRIGHTNESS, LINEARBLEND);
+    }
   }
 }
 
 void allOnThenFade(double timeToFade, CRGBPalette16 palette){ // WARNING takes 1.569 
   //double startT = millis();                                 // Seconds to run 
   FastLED.setBrightness(255);
-  fillFromPalette(palette);
+  fillFromPalette(palette, OFFSET, NUM_LEDS, true);
   FastLED.show();
 
   int brightness = BRIGHTNESS;
@@ -58,7 +65,7 @@ void fadeIn(double timeToFade, CRGBPalette16 palette){
 //  double startT = millis();
   
   FastLED.setBrightness(0);
-  fillFromPalette(palette);
+  fillFromPalette(palette, OFFSET, NUM_LEDS, true);
   FastLED.show();
   
   int brightness = 0;
@@ -82,7 +89,7 @@ void glowingLine(int startLED, int len=10, CRGBPalette16 palette=CloudColors_p, 
 }
 
 void ceilingGlow( CRGBPalette16 palette=CloudColors_p ){
-    fillFromPalette(palette, START_CEILING, NUM_LEDS);
+    fillFromPalette(palette, START_CEILING, NUM_LEDS, true);
 }
 
 void setUp(){
@@ -130,7 +137,7 @@ void glowingStripes(int numStripes, int offset, CRGBPalette16 palette){
     if (i % 2 == 0){
       for (int led = 0; led < lenOfPatches; led++){
         int ledIndex = led + (i * lenOfPatches) + offset;
-        leds[ledIndex % NUM_LEDS] = ColorFromPalette(palette, i, BRIGHTNESS, LINEARBLEND);
+        leds[ledIndex % (NUM_LEDS - OFFSET) + OFFSET] = ColorFromPalette(palette, i, BRIGHTNESS, LINEARBLEND);
       }
     }
   }
@@ -166,17 +173,27 @@ void setup(){
 
 void loop(){
   //test();
+  //setUp();
+  delay(1000);
+  FastLED.clear();
   setupRun();
+}
+
+void shitFlash(int delayTime=100){
+  fillFromPalette(PartyColors_p);
+  FastLED.show();
+  delay(delayTime);
+  FastLED.clear();
+  FastLED.show();
 }
 
 void setupRun(){
   digitalWrite(11, LOW);
   int i = 0;                        // Pulse 4 times to sync music
   while(i < 4) {
-    leds[i] = CRGB(255, 255, 0);
-    FastLED.show();
-    i++;
-    delay(500);         
+    shitFlash(100);
+    delay(612);
+    i++;         
   }
   
   allWhite(CRGB(0,0,0));
@@ -218,10 +235,12 @@ void test(){                        // Not implimented in official version, for 
  Serial.print(runTime);
 }
 
-void snakeOn(CRGBPalette16 palette){
+void snakeOn(CRGBPalette16 palette, int litspeed=1){
   FastLED.clear();
-  for (int i = 0; i < NUM_LEDS; i++){
-    leds[i] = ColorFromPalette(palette, i, BRIGHTNESS, LINEARBLEND);
+  for (int i = 0; i < NUM_LEDS/litspeed; i++){
+    for (int j = 0; j < litspeed; j++){
+      leds[i*litspeed+j] = ColorFromPalette(palette, i, BRIGHTNESS, LINEARBLEND);
+    }
     FastLED.show();
   }
 }
@@ -241,13 +260,7 @@ void twinkle(int numLights, CRGBPalette16 palette){
   }
 }
 
-void shitFlash(int delayTime=100){
-  fillFromPalette(PartyColors_p);
-  FastLED.show();
-  delay(delayTime);
-  FastLED.clear();
-  FastLED.show();
-}
+
 void run(){
 
   CRGBPalette16 red_p = getRedPalette();
@@ -263,17 +276,16 @@ void run(){
   snakeOn(LavaColors_p);
   
   delay(22965 - (millis() - start));     // Doesn't start until here
+  FastLED.clear();
   int i = 0;
-  while(i < 12) {   // Rhythm for part 1 84BPM == 714ms
+  while(i < 12*4*2) {   // Rhythm for part 1 84BPM == 714ms
 
     startMethodTime = millis();
-    glowingStripes_intro(15, 0, LavaColors_p);
+    ceilingGlow(LavaColors_p);
+    leds[OFFSET + i%(NUM_LEDS-OFFSET)] = ColorFromPalette(LavaColors_p, i, BRIGHTNESS, LINEARBLEND);
     FastLED.show();
-    delay(715 - (millis() - startMethodTime));
+    delay(715/(2*2) - (millis() - startMethodTime));
 
-    startMethodTime = millis();
-    glowingStripes_intro(15, 1, LavaColors_p);
-    delay(715 - (millis() - startMethodTime));
     i++;
   }
   
@@ -294,7 +306,7 @@ void run(){
   while (i < ((((16 * 4) - 2)) - 30)){
     FastLED.clear();        
     startMethodTime = millis();
-    glowingStripes(15, i, red_p);
+    glowingStripes(15, i, LavaColors_p);
     ceilingGlow(PartyColors_p);
     FastLED.show();
     delay((984/2) - (millis() - startMethodTime));
@@ -306,7 +318,7 @@ void run(){
     FastLED.clear();        
     startMethodTime = millis();
     glowingStripes(15, i, CloudColors_p);
-    ceilingGlow(RainbowColors_p);
+    ceilingGlow(CloudColors_p);
     FastLED.show();
     delay((1000) - (millis() - startMethodTime));
     i++;
@@ -319,26 +331,26 @@ void run(){
   FastLED.clear();
   FastLED.setBrightness(BRIGHTNESS);
   while(i < 3){  // Rhythm for 2.b 60BPM == 1000ms (could maybe add one more?)
-    fadeIn(500, red_p);
+    fadeIn(500, LavaColors_p);
     fadeOut(500);
     delay(1000);
     i++;
   }
-    fadeIn(500, red_p);
+    fadeIn(500, LavaColors_p);
     delay(250);
     fadeOut(500);
 
     delay(500);
-    fadeIn(500, red_p);
+    fadeIn(500, LavaColors_p);
     fadeOut(500);
   // Fades here at these times
   FastLED.clear();
   // flash on
   
   //start -= 50;  // account for timer drift
-  delay((60000*2 + 4158) - (millis() - start));   // Get better timing here
-  FastLED.setBrightness(255);
-  shitFlash();
+  //delay((60000*2 + 4158) - (millis() - start));   // Get better timing here
+  FastLED.setBrightness(BRIGHTNESS);
+  //shitFlash();
   delay((60000*2 + 4469) - (millis() - start));
   shitFlash();
   delay((60000*2 + 4718) - (millis() - start));
@@ -356,7 +368,7 @@ void run(){
     startMethodTime = millis();
     FastLED.clear();
     FastLED.setBrightness(255);
-    glowingStripes(15, i, red_p);
+    glowingStripes(15, i, LavaColors_p);
     FastLED.show();
     delay(250 - (millis() - startMethodTime));
     i++;
@@ -369,9 +381,9 @@ void run(){
   i = 0;
 
   delay(((60000*2 + 26251)-conversion) - (millis() - start));
-  while(i < 32*3){  // 32 triplets at 51 BPM
-    FastLED.clear();
+  while(i < 29*3){  // 28 triplets at 51 BPM
     startMethodTime = millis();
+    FastLED.clear();
     if (i > 16*3){
       glowingStripes(15, i, OceanColors_p);
     }
@@ -381,16 +393,29 @@ void run(){
     i++;
   }
 
+  i = 0;
+  while(i < 3*6) {  // 4 sixlets at 51 BPM
+    startMethodTime = millis();
+    if (i % 6 != 3){ // Hold on last note, like in song
+      FastLED.clear();
+      glowingStripes(15, i, LavaColors_p);
+    }
+    
+    ceilingGlow(LavaColors_p);
+    FastLED.show();
+    delay(392/2 - (millis() - startMethodTime));
+    i++;
+  }
   // Kids part 2.a 98 bpm
 
-  delay(((60000*3 + 4214)-conversion + 50) - (millis() - start));
+  delay(((60000*3 + 4334)-conversion + 170) - (millis() - start));
   i = 0;
   while (i < 16*3 - 1){
     startMethodTime = millis();
     FastLED.clear();
-    twinkle(15, CloudColors_p);
+    twinkle(15, LavaColors_p);
     if (i >= 16){
-      twinkle(15, OceanColors_p);
+      twinkle(15, LavaColors_p);
     } if (i >= 32) {
       twinkle(15, pg_p);
     }
@@ -400,7 +425,7 @@ void run(){
   }
   fadeOut(1); 
 
-  //conversion -= 100;
+  conversion -= HEAT_DELAY;
   delay(100);
   FastLED.setBrightness(BRIGHTNESS);
   delay(((60000*3 + 35705) - conversion) - (millis() - start));
@@ -409,13 +434,13 @@ void run(){
   fadeOut(1000);
   
   FastLED.setBrightness(BRIGHTNESS);
-  delay(((60000*3 + 37946) - conversion) - (millis() - start));
+  delay(((60000*3 + 38046) - conversion) - (millis() - start));
   fillFromPalette(ForestColors_p);
   FastLED.show();
   fadeOut(1000);
 
   FastLED.setBrightness(BRIGHTNESS);
-  delay(((60000*3 + 40062) - conversion) - (millis() - start));
+  delay(((60000*3 + 40102) - conversion) - (millis() - start));
   fillFromPalette(OceanColors_p);
   FastLED.show();
   fadeOut(1000);
@@ -451,7 +476,6 @@ void run(){
   fillFromPalette(CloudColors_p);
   FastLED.show();
 
-  conversion -= 150;
   FastLED.setBrightness(BRIGHTNESS);
   FastLED.clear();
   delay(((60000*3 + 52260) - conversion) - (millis() - start));
@@ -512,23 +536,28 @@ void run(){
   shitFlash(100);
   
   delay(((60000*4 + 3213) - conversion) - (millis() - start));
-  snakeOn(PartyColors_p);
+  snakeOn(PartyColors_p, 2);
   
-  delay(((60000*4 + 5827) - conversion) - (millis() - start));
+  delay(((60000*4 + 4333) - conversion) - (millis() - start));
   i = 0;
-  while(i < (14 * 4*2) - 12) { // 14 measures, runs every 8th note
+  while(i < (14 * 4*2)) { // 14 measures, runs every 8th note
                         // 116 BPM == 517ms (259 for 8th note)
-    FastLED.clear();
     startMethodTime = millis(); 
 
-    glowingLine(i, 10, PartyColors_p);
-    twinkle(30, red_p);
-    twinkle(30, RainbowColors_p);    
+    if (i % 8 != 0 || i == 0){
+      FastLED.clear();
+      glowingLine(i, 10, PartyColors_p);
+      twinkle(30, red_p);
+      twinkle(30, RainbowColors_p); 
+    }   
 
     FastLED.show();
     delay(259 - (millis() - startMethodTime));
     i++;
   }
+  fadeOut(1000);
+  digitalWrite(11, LOW);
+  delay(1000);
 }
 
 
